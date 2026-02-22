@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="./favicon.png" type="image/png" />
+    <title>Mis Horas</title>
+    <style>
+      :root {
+        --red: #d32f2f;
+        --bg: #fdfdfd;
+        --card: #ffffff;
+      }
+      body {
+        font-family: "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: #333;
+        margin: 0;
+        padding: 15px;
+      }
+      .card {
+        background: var(--card);
+        border-radius: 15px;
+        padding: 20px;
+        box-shadow: 0 4px 15px rgba(211, 47, 47, 0.1);
+        margin-bottom: 20px;
+        border: 1px solid #fce4e4;
+      }
+      h2 {
+        color: var(--red);
+        margin: 0 0 15px 0;
+        font-size: 1.1rem;
+        border-bottom: 2px solid #ffcdd2;
+        padding-bottom: 5px;
+      }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .stat-box {
+        background: #fff5f5;
+        padding: 15px;
+        border-radius: 12px;
+        text-align: center;
+        border: 1px solid #ffebf0;
+      }
+      .stat-val {
+        display: block;
+        font-size: 1.4rem;
+        font-weight: bold;
+        color: var(--red);
+      }
+      .stat-label {
+        font-size: 0.75rem;
+        color: #888;
+        text-transform: uppercase;
+      }
+
+      input {
+        width: 100%;
+        padding: 12px;
+        margin: 8px 0 15px 0;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        box-sizing: border-box;
+        font-size: 1rem;
+      }
+      button {
+        width: 100%;
+        background: var(--red);
+        color: white;
+        border: none;
+        padding: 15px;
+        border-radius: 10px;
+        font-weight: bold;
+        font-size: 1rem;
+        cursor: pointer;
+      }
+      button:disabled {
+        background: #ef9a9a;
+      }
+
+      /* Acordeón de Meses */
+      .month-group {
+        margin-bottom: 10px;
+        border: 1px solid #eee;
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .month-header {
+        background: #fff;
+        padding: 12px;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        font-weight: bold;
+        align-items: center;
+      }
+      .month-header:active {
+        background: #fff5f5;
+      }
+      .month-content {
+        display: none;
+        padding: 0 12px;
+        background: #fafafa;
+        border-top: 1px solid #eee;
+      }
+      .day-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 0;
+        border-bottom: 1px solid #eee;
+        font-size: 0.9rem;
+      }
+      .day-row:last-child {
+        border-bottom: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h2 id="tituloMes">Resumen de este Mes</h2>
+      <div class="stats-grid">
+        <div class="stat-box">
+          <span class="stat-val" id="hTot">0</span>
+          <span class="stat-label">Horas Realizadas</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-val" id="pTot">$0</span>
+          <span class="stat-label">Dinero Acumulado</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>➕ Registrar Jornada</h2>
+      <form id="formH">
+        <input type="date" id="f" required />
+        <input
+          type="number"
+          id="h"
+          step="0.1"
+          placeholder="Cantidad de horas"
+          required
+        />
+        <input type="text" id="n" placeholder="Notas (opcional)" />
+        <button type="submit" id="btn">GUARDAR EN EXCEL</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>📋 Historial por Meses</h2>
+      <div id="mesesContainer">Cargando datos...</div>
+    </div>
+
+    <script>
+      const url =
+        "https://script.google.com/macros/s/AKfycbzUCJLKdyodTpR1Vv-2_CbVv6KX8Pg2HIcFWMwaBJz5_6KYuhJ1BBNU3Tt905QQ1A-t/exec";
+      const VALOR_HORA = 4735;
+
+      document.getElementById("f").valueAsDate = new Date();
+
+      async function cargar() {
+        try {
+          const res = await fetch(url + "?t=" + Date.now());
+          const data = await res.json();
+          procesarDatos(data);
+        } catch (e) {
+          document.getElementById("mesesContainer").innerText =
+            "Error al conectar.";
+        }
+      }
+
+      function procesarDatos(data) {
+        const mesesContainer = document.getElementById("mesesContainer");
+        mesesContainer.innerHTML = "";
+
+        const hoy = new Date();
+        const mesActualNum = hoy.getMonth();
+        const añoActual = hoy.getFullYear();
+
+        // Agrupar datos por Mes/Año
+        const grupos = {};
+        let hsMesActual = 0;
+
+        data.forEach((row) => {
+          const fecha = new Date(row[0]);
+          const mesAño = fecha.toLocaleString("es-AR", {
+            month: "long",
+            year: "numeric",
+          });
+          if (!grupos[mesAño]) grupos[mesAño] = { horas: 0, items: [] };
+
+          const cant = parseFloat(row[1]);
+          grupos[mesAño].horas += cant;
+          grupos[mesAño].items.push({ fecha, horas: cant, notas: row[2] });
+
+          if (
+            fecha.getMonth() === mesActualNum &&
+            fecha.getFullYear() === añoActual
+          ) {
+            hsMesActual += cant;
+          }
+        });
+
+        // Actualizar Cabecera
+        document.getElementById("hTot").innerText = hsMesActual;
+        document.getElementById("pTot").innerText =
+          "$" + (hsMesActual * VALOR_HORA).toLocaleString();
+
+        // Crear Acordeones
+        const nombresMeses = Object.keys(grupos).reverse();
+        if (nombresMeses.length === 0) {
+          mesesContainer.innerHTML = "No hay registros.";
+          return;
+        }
+
+        nombresMeses.forEach((nombre) => {
+          const m = grupos[nombre];
+          const div = document.createElement("div");
+          div.className = "month-group";
+          div.innerHTML = `
+                <div class="month-header" onclick="toggleMes(this)">
+                    <span>${nombre.toUpperCase()}</span>
+                    <span style="color:var(--red)">${m.horas} hs / $${(m.horas * VALOR_HORA).toLocaleString()} ▾</span>
+                </div>
+                <div class="month-content">
+                    ${m.items
+                      .reverse()
+                      .map(
+                        (i) => `
+                        <div class="day-row">
+                            <div>
+                                <b>${i.fecha.toLocaleDateString("es-AR", { day: "2-digit" })}</b> 
+                                <small style="color:#888; margin-left:10px">${i.notas || ""}</small>
+                            </div>
+                            <b>${i.horas} hs</b>
+                        </div>
+                    `,
+                      )
+                      .join("")}
+                </div>
+            `;
+          mesesContainer.appendChild(div);
+        });
+      }
+
+      function toggleMes(el) {
+        const content = el.nextElementSibling;
+        content.style.display =
+          content.style.display === "block" ? "none" : "block";
+      }
+
+      document.getElementById("formH").onsubmit = async (e) => {
+        e.preventDefault();
+        const b = document.getElementById("btn");
+        b.disabled = true;
+        b.innerText = "GUARDANDO...";
+        const fd = new FormData();
+        fd.append("fecha", document.getElementById("f").value);
+        fd.append("horas", document.getElementById("h").value);
+        fd.append("notas", document.getElementById("n").value);
+        try {
+          await fetch(url, { method: "POST", body: fd });
+          document.getElementById("h").value = "";
+          document.getElementById("n").value = "";
+          await cargar();
+        } catch (err) {
+          alert("Error");
+        } finally {
+          b.disabled = false;
+          b.innerText = "REGISTRAR EN EXCEL";
+        }
+      };
+
+      window.onload = cargar;
+    </script>
+  </body>
+</html>
