@@ -155,10 +155,11 @@
       <div id="mesesContainer">Cargando datos...</div>
     </div>
 
-    <script>
+   <script>
       const url =
         "https://script.google.com/macros/s/AKfycbzUCJLKdyodTpR1Vv-2_CbVv6KX8Pg2HIcFWMwaBJz5_6KYuhJ1BBNU3Tt905QQ1A-t/exec";
       const VALOR_HORA = 4735;
+      const DESCUENTO = 0.1843;
 
       document.getElementById("f").valueAsDate = new Date();
 
@@ -181,7 +182,6 @@
         const mesActualNum = hoy.getMonth();
         const añoActual = hoy.getFullYear();
 
-        // Agrupar datos por Mes/Año
         const grupos = {};
         let hsMesActual = 0;
 
@@ -205,12 +205,14 @@
           }
         });
 
-        // Actualizar Cabecera
+        // 2. MODIFICAMOS LA CABECERA (Calculamos el Neto)
+        const brutoMesActual = hsMesActual * VALOR_HORA;
+        const netoMesActual = brutoMesActual * (1 - DESCUENTO);
+
         document.getElementById("hTot").innerText = hsMesActual;
         document.getElementById("pTot").innerText =
-          "$" + (hsMesActual * VALOR_HORA).toLocaleString();
+          "$" + Math.floor(netoMesActual).toLocaleString("es-AR");
 
-        // Crear Acordeones
         const nombresMeses = Object.keys(grupos).reverse();
         if (nombresMeses.length === 0) {
           mesesContainer.innerHTML = "No hay registros.";
@@ -219,14 +221,24 @@
 
         nombresMeses.forEach((nombre) => {
           const m = grupos[nombre];
+
+          // 3. MODIFICAMOS EL HISTORIAL (Calculamos Neto por mes)
+          const brutoMes = m.horas * VALOR_HORA;
+          const netoMes = brutoMes * (1 - DESCUENTO);
+
           const div = document.createElement("div");
           div.className = "month-group";
           div.innerHTML = `
                 <div class="month-header" onclick="toggleMes(this)">
                     <span>${nombre.toUpperCase()}</span>
-                    <span style="color:var(--red)">${m.horas} hs / $${(m.horas * VALOR_HORA).toLocaleString()} ▾</span>
+                    <span style="color:var(--red)">
+                      ${m.horas} hs / $${Math.floor(netoMes).toLocaleString("es-AR")} ▾
+                    </span>
                 </div>
                 <div class="month-content">
+                    <div style="font-size:0.75rem; color:#888; padding:5px 0; border-bottom:1px solid #eee">
+                       Bruto: $${Math.floor(brutoMes).toLocaleString()} | Aportes (18.43%): -$${Math.floor(brutoMes * DESCUENTO).toLocaleString()}
+                    </div>
                     ${m.items
                       .reverse()
                       .map(
@@ -279,3 +291,4 @@
     </script>
   </body>
 </html>
+
